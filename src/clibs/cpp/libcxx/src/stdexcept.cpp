@@ -7,26 +7,20 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifdef __ORANGEC__
-#define __sync_add_and_fetch(__a__, __m__) __atomic_modify( __a__, +=, __m__, 5 )
-#endif
-
-#include "__refstring"
 #include "stdexcept"
 #include "new"
 #include "string"
 #include "system_error"
-
-#ifndef __has_include
-#define __has_include(inc) 0
-#endif
+#include "include/refstring.h"
 
 /* For _LIBCPPABI_VERSION */
-#if __has_include(<cxxabi.h>) || defined(__APPLE_) || defined(LIBCXXRT)
+#if !defined(_LIBCPP_BUILDING_HAS_NO_ABI_LIBRARY) && \
+    (defined(LIBCXX_BUILDING_LIBCXXABI) || defined(__APPLE__) || defined(LIBCXXRT))
 #include <cxxabi.h>
 #endif
 
 static_assert(sizeof(std::__libcpp_refstring) == sizeof(const char *), "");
+
 
 namespace std  // purposefully not using versioning namespace
 {
@@ -84,8 +78,6 @@ runtime_error::operator=(const runtime_error& le) _NOEXCEPT
     return *this;
 }
 
-#undef _LIBCPPABI_VERSION
-#undef LIBSTDCXX
 #if !defined(_LIBCPPABI_VERSION) && !defined(LIBSTDCXX)
 
 runtime_error::~runtime_error() _NOEXCEPT
