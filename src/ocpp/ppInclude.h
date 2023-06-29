@@ -126,13 +126,6 @@ class ppInclude
     std::set<std::string>& GetSysIncludes() { return sysIncludes; }
 
     static void SetCommentChar(char ch) { commentChar = ch; }
-    int AnonymousIndex() const
-    {
-        if (current)
-            return current->AnonymousIndex();
-        else
-            return 1;
-    }
     std::string ParseName(const std::string& args, bool& specifiedAsSystem);
     // Put a throwaway value in dirs_skipped here unless you need to use it for #include_next shenanigans with pushFile
     std::string FindFile(bool specifiedAsSystem, const std::string& name, bool skipFirst, int& dirs_skipped, bool& foundAsSystem);
