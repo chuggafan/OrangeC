@@ -33,7 +33,7 @@
 #include "ppMacro.h"
 #include "ppCtx.h"
 #include "ppExpr.h"
-
+#include "ppEmbed.h"
 class PreProcessor
 {
   public:
@@ -47,7 +47,8 @@ class PreProcessor
         macro(include, define),
         ctx(define),
         trigraphs(Trigraph),
-        pragma(&include, &define)
+        pragma(&include, &define),
+        ppEmbed(include)
     {
         InitHash();
         Errors::SetInclude(&include);
@@ -101,7 +102,7 @@ class PreProcessor
     std::string StripTrigraphs(std::string line);
     // this returns the state of the current input file, only means main file when no include files are opened.
     bool IsOpen() const { return include.IsOpen(); }
-
+    void SetEmbedCallback(std::function<void(std::vector<embeder_size>)> embed_func) { ppEmbed.set_embed_function(embed_func); }
   private:
     bool trigraphs;
     char ppStart;
@@ -112,6 +113,7 @@ class PreProcessor
     ppError ppErr;
     ppPragma pragma;
     KeywordHash hash;
+    embeder ppEmbed;
     int lineno;
     std::string preData;
     std::string origLine;

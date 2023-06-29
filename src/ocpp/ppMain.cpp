@@ -43,6 +43,8 @@ CmdSwitchBool ppMain::assembly(SwitchParser, 'a', false);
 CmdSwitchBool ppMain::disableExtensions(SwitchParser, 'A', false);
 CmdSwitchBool ppMain::c99Mode(SwitchParser, '9', true);
 CmdSwitchBool ppMain::c11Mode(SwitchParser, '1', false);
+CmdSwitchBool ppMain::c23Mode(SwitchParser, '2', false);
+
 CmdSwitchBool ppMain::trigraphs(SwitchParser, 'T', false);
 CmdSwitchDefine ppMain::defines(SwitchParser, 'D');
 CmdSwitchDefine ppMain::undefines(SwitchParser, 'U');
@@ -67,7 +69,7 @@ const char* ppMain::usageText =
     "[options] files\n"
     "\n"
     "/1             - C11 mode                  /9          - C99 mode\n"
-    "/a             - Assembler mode\n"
+    "/2             - C23 mode                  /a          - Assembler mode\n"
     "/A             - Disable extensions        /Dxxx       - Define something\n"
     "/E[+]nn        - Max number of errors      /Ipath      - Specify include path\n"
     "/T             - translate trigraphs       /Uxxx       - Undefine something\n"
