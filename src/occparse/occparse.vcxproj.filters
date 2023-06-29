@@ -264,6 +264,9 @@
     <ClCompile Include="ListFactory.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\ocpp\ppEmbed.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="c.h">
@@ -492,6 +495,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="ListFactory.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\ocpp\ppEmbed.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

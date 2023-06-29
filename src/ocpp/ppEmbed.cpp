@@ -34,7 +34,7 @@ std::tuple<std::vector<embeder_size>, bool> embeder::EmbedFile(std::string& inpu
         }
         builder.insert(builder.end(), next_thing.begin(), next_thing.end());
         builder.insert(builder.end(), info.postfix.begin(), info.postfix.end());
-        if (embed_elements != nullptr)
+        if (embed_elements)
         {
             embed_elements(builder);
         }

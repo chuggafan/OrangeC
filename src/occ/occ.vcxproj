@@ -21,6 +21,7 @@
   <ItemGroup>
     <ClInclude Include="..\oasm\AdlStructures.h" />
     <ClInclude Include="..\occopt\beinterf.h" />
+    <ClInclude Include="..\ocpp\ppEmbed.h" />
     <ClInclude Include="be.h" />
     <ClInclude Include="beIntrins.h" />
     <ClInclude Include="beIntrinsicProtos.h" />
@@ -63,6 +64,7 @@
     <ClCompile Include="..\ocpp\ppCond.cpp" />
     <ClCompile Include="..\ocpp\ppCtx.cpp" />
     <ClCompile Include="..\ocpp\ppDefine.cpp" />
+    <ClCompile Include="..\ocpp\ppEmbed.cpp" />
     <ClCompile Include="..\ocpp\ppError.cpp" />
     <ClCompile Include="..\ocpp\ppExpr.cpp" />
     <ClCompile Include="..\ocpp\ppFile.cpp" />

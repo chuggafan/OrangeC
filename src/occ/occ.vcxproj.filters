@@ -60,6 +60,9 @@
     <ClInclude Include="..\oasm\AdlStructures.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\ocpp\ppEmbed.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="beIntrins.cpp">
@@ -173,9 +176,6 @@
     <ClCompile Include="..\occopt\configx86.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\ocpp\InputFile.cpp">
-      <Filter>Header Files</Filter>
-    </ClCompile>
     <ClCompile Include="..\occopt\ildata.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -201,6 +201,12 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\oasm\AdlFunctions.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ocpp\ppEmbed.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ocpp\InputFile.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
