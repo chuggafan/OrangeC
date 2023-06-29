@@ -36,6 +36,7 @@ class ppMain
 
   private:
     static CmdSwitchParser SwitchParser;
+    static CmdSwitchBool ShowHelp;
     static CmdSwitchBool assembly;
     static CmdSwitchBool disableExtensions;
     static CmdSwitchBool c99Mode;
@@ -61,6 +62,7 @@ class ppMain
     static CmdSwitchBool MakeStubsContinueUser;
 
     static const char* usageText;
+    static const char* helpText;
 };
 
 #endif

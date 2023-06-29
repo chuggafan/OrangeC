@@ -23,11 +23,11 @@
  */
 
 #include "compiler.h"
-#include <signal.h>
-#include <setjmp.h>
-#include <stdarg.h>
-#include <ctype.h>
-#include <stdlib.h>
+#include <csignal>
+#include <csetjmp>
+#include <cstdarg>
+#include <cctype>
+#include <cstdlib>
 #include <string>
 #include <deque>
 #include "PreProcessor.h"
@@ -76,6 +76,7 @@ int cplusplusversion = 14;
 std::deque<DefValue> defines;
 
 CmdSwitchParser switchParser;
+CmdSwitchBool ShowHelp(switchParser, '?', false, {"help"});
 CmdSwitchBool prm_c89(switchParser, '8');
 CmdSwitchBool prm_c99(switchParser, '9');
 CmdSwitchBool prm_c11(switchParser, '1');
@@ -562,10 +563,20 @@ static void ParamTransfer(char* name)
             Optimizer::cparams.prm_maxerr = n;
         DisableTrivialWarnings();
     }
-    checks = Utils::split(prm_warning.GetValue());
-    for (auto&& v : checks)
+    if (prm_warning.GetExists())
     {
-        warning_setup('w', v.c_str());
+        checks = Utils::split(prm_warning.GetValue());
+        if (checks.empty())
+        {
+            warning_setup('w', "");
+        }
+        else
+        {
+            for (auto&& v : checks)
+            {
+                warning_setup('w', v.c_str());
+            }
+        }
     }
     if (prm_Werror.GetExists())
     {
@@ -618,8 +629,8 @@ static void ParamTransfer(char* name)
     {
         char buf[260];
         strcpy(buf, v.c_str());
-        Utils::StripExt(buf);
-        Utils::AddExt(buf, ".l");
+        if (strlen(buf) < 2 || (strcmp(buf + strlen(buf) - 2, ".l") != 0 && strcmp(buf + strlen(buf) - 2, ".L") != 0))
+           strcat(buf, ".l");
         InsertAnyFile(buf, 0, -1);
     }
     if (prm_libpath.GetExists())
@@ -1160,10 +1171,12 @@ int ccinit(int argc, char* argv[])
     int ecnt = 0;
     char* eargs[200];
     bool need_usage = false;
-    if (!switchParser.Parse(&argc, argv) || (argc == 1 && prm_file.GetCount() <= 1 && ecnt <= 1))
+    if (!switchParser.Parse(&argc, argv) || (argc == 1 && prm_file.GetCount() <= 1 && ecnt <= 1 && !ShowHelp.GetExists()))
     {
         need_usage = true;
     }
+    if (ShowHelp.GetExists())
+        need_usage = true;
     /* initialize back end */
     if (prm_assemble.GetExists())
     {
@@ -1202,7 +1215,10 @@ int ccinit(int argc, char* argv[])
         return true;
     if (need_usage)
     {
-        Utils::usage(argv[0], getUsageText());
+        if (ShowHelp.GetExists())
+            Utils::usage(argv[0], getHelpText());
+        else
+            Utils::usage(argv[0], getUsageText());
     }
 
     if (Optimizer::chosenAssembler->envname)
@@ -1258,8 +1274,7 @@ int ccinit(int argc, char* argv[])
 
     if (IsCompiler())
     {
-
-        if (prm_output.GetExists() && !MakeStubsContinue.GetValue() && !MakeStubsContinueUser.GetValue())
+        if (prm_output.GetExists() && !MakeStubsContinue.GetValue() && !MakeStubsContinueUser.GetValue() && ! Optimizer::cparams.prm_cppfile)
         {
             Optimizer::outputFileName = prm_output.GetValue();
             if (!Optimizer::cparams.prm_compileonly)

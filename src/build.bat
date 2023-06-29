@@ -108,6 +108,7 @@
                   copy omake\omake.exe \orangec\temp
                   REM  in this last one we add in OCCIL so it will be in the install packages...
                   IF "%WITHDEBUG%" NEQ "" (
+                      omake /fzip.mak
                       goto nosecondbuild:
                   )
                   c:\orangec\temp\omake /DCOMPILER=OCC clean -j:%PARALLEL%
@@ -134,10 +135,14 @@
                   )
                   cd ..\src
 :notests
+                  IF "%WITHDEBUG%" NEQ "" (
+                      goto finish
+                  )
                   omake /fzip7z.mak
                   IF %ERRORLEVEL% NEQ 0 (
                       goto error;
                   )
+:finish
                   echo succeeded
                   goto done
 :error

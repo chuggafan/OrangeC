@@ -1,0 +1,34 @@
+name: C/C++ CI
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+  build:
+
+    runs-on: windows-latest
+
+    env:
+      ORANGEC: d:\a\orangec\orangec
+      
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+
+    - name: Configs
+      run: echo 'd:\a\orangec\orangec\bin' >> "${GITHUB_PATH}"
+
+    - name: Build
+      run: |
+         cd d:\a\orangec\orangec\src
+         omake /DCOMPILER=MS /DORANGEC_ONLY=YES fullbuild -j:2
+
+    - name: Test
+      run: |
+         cd d:\a\orangec\orangec\tests
+         omake -B -j:2 /DCOMPILER=OCC
+         cd ..

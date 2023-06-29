@@ -23,7 +23,7 @@
  */
 
 #include "compiler.h"
-#include <assert.h>
+#include <cassert>
 #include "rtti.h"
 #include "ccerr.h"
 #include "config.h"
@@ -1781,6 +1781,11 @@ LEXLIST* expression_new(LEXLIST* lex, SYMBOL* funcsp, TYPE** tp, EXPRESSION** ex
                 if (!isint(tp1))
                 {
                     error(ERR_NEED_INTEGER_TYPE);
+                }
+                if (tp1->type != bt_unsigned)
+                {
+                    tp1 = &stdunsigned;
+                    cast(tp1, &exp);
                 }
                 needkw(&lex, closebr);
                 ParseAttributeSpecifiers(&lex, funcsp, true);

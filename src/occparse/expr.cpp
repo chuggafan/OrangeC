@@ -1104,7 +1104,7 @@ static LEXLIST* variableName(LEXLIST* lex, SYMBOL* funcsp, TYPE* atp, TYPE** tp,
                 funcparams = Allocate<FUNCTIONCALL>();
                 funcparams->sp = sym;
                 funcparams->functp = sym->tp;
-                funcparams->fcall = intNode(en_c_i, 0);
+                funcparams->fcall = varNode(en_pc, sym);
                 funcparams->nameSpace = strSym ? nullptr : nsv ? nsv->front() : nullptr;
                 *tp = sym->tp;
                 *exp = varNode(en_func, nullptr);
@@ -6617,7 +6617,9 @@ static LEXLIST* expression_ampersand(LEXLIST* lex, SYMBOL* funcsp, TYPE* atp, TY
                             done = true;
                     } while (!done);
                     sym->tp = tpn;
-                    sym->sb->storage_class = sc_static;
+                    sym->sb->storage_class = sc_localstatic;
+                    SetLinkerNames(sym, lk_cdecl);
+                    Optimizer::SymbolManager::Get(sym)->storage_class = Optimizer::scc_localstatic;
                     insertInitSym(sym);
                 }
                 else
@@ -9761,10 +9763,15 @@ LEXLIST* expression_no_comma(LEXLIST* lex, SYMBOL* funcsp, TYPE* atp, TYPE** tp,
 LEXLIST* expression_no_check(LEXLIST* lex, SYMBOL* funcsp, TYPE* atp, TYPE** tp, EXPRESSION** exp, int flags)
 {
     if (flags & _F_TYPETEST)
+    {
         anonymousNotAlloc++;
-    lex = expression_comma(lex, funcsp, atp, tp, exp, nullptr, flags);
-    if (flags & _F_TYPETEST)
+        lex = expression_no_comma(lex, funcsp, atp, tp, exp, nullptr, flags);        
         anonymousNotAlloc--;
+    }
+    else
+    {
+        lex = expression_comma(lex, funcsp, atp, tp, exp, nullptr, flags);
+    }
     return lex;
 }
 

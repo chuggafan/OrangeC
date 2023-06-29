@@ -31,7 +31,7 @@
 #include "Rule.h"
 #include <fstream>
 #include <iostream>
-#include <string.h>
+#include <cstring>
 #include <algorithm>
 #ifdef HAVE_UNISTD_H
 #    include <unistd.h>
@@ -142,6 +142,7 @@ bool Include::Parse(const std::string& name, bool ignoreOk, bool MakeFiles)
     }
     return rv;
 }
+#include <direct.h>
 bool Include::AddFileList(const std::string& name, bool ignoreOk, bool MakeFile)
 {
     Eval e(name, false);
@@ -170,7 +171,12 @@ bool Include::AddFileList(const std::string& name, bool ignoreOk, bool MakeFile)
         }
         else
         {
-            cmdFiles.AddFromPath(current, includeDirs);
+            auto includes = includeDirs;
+            if (!currentPath.empty() && current[0] == '.')
+            {
+                includes = currentPath.top() + CmdFiles::PATH_SEP + includes;
+            }
+            cmdFiles.AddFromPath(current, includes);
         }
     }
     for (auto it = cmdFiles.FileNameBegin(); rv && it != cmdFiles.FileNameEnd(); ++it)
@@ -186,7 +192,18 @@ bool Include::AddFileList(const std::string& name, bool ignoreOk, bool MakeFile)
             v->SetValue(v->GetValue() + " " + (*it));
         }
         files.push_back((*it));
+        auto path = (*it);
+        int n = path.find_last_of("/\\");
+        if (n != std::string::npos)
+        {
+            path = path.substr(0, n);
+            currentPath.push(path);
+        }
         rv &= Parse((*it), ignoreOk || MakeFile, MakeFile);
+        if (n != std::string::npos)
+        {
+            currentPath.pop();
+        }
     }
     return rv;
 }

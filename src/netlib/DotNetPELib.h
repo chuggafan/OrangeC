@@ -33,12 +33,12 @@
 #include <iostream>
 #include <fstream>
 #include <stdexcept>
-#include <string.h>
+#include <cstring>
 #include <memory>
 #include <map>
 // reference changelog.txt to see what the changes are
 //
-#define DOTNETPELIB_VERSION "3.01"
+#define DOTNETPELIB_VERSION "3.04"
 
 // this is the main library header
 // it allows creation of the methods and data that would be dumped into 

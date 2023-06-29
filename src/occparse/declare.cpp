@@ -23,7 +23,7 @@
  */
 
 #include "compiler.h"
-#include <wchar.h>
+#include <cwchar>
 #include "Utils.h"
 #include "PreProcessor.h"
 #include "ioptimizer.h"
@@ -139,13 +139,35 @@ const char* AnonymousName(void)
     Optimizer::my_sprintf(buf, "Anonymous++Identifier %d", unnamed_id++);
     return litlate(buf);
 }
-const char* AnonymousTypeName(void)
+static unsigned TypeCRC(SYMBOL* sp);
+const char* AnonymousTypeName(SYMBOL* sp, SymbolTable<SYMBOL>* table)
 {
     char buf[512];
-    std::string name = preProcessor->GetRealFile();
-    int index = name == "" ? unnamed_id++ : preProcessor->GetAnonymousIndex();
-    sprintf(buf, "__anontype_%08x_%04d", Utils::CRC32((const unsigned char*)name.c_str(), name.size()), index);
-    return litlate(buf);
+    // type name will depend on file name
+    auto name = preProcessor->GetRealFile().c_str();
+    unsigned fileCRC = Utils::CRC32((const unsigned char *)name, strlen(name));
+    // type name will also depend on the structure/enum elements defined for the type
+    unsigned typeCRC = TypeCRC(sp);
+
+    // generate type name
+    sprintf(buf, "__anontype_%08x_%08x", fileCRC, typeCRC);
+    // if it doesn't exist we are done...
+    if (search(table, buf) == nullptr)
+        return litlate(buf);
+
+    // ok so now we have the rare case where two type names collide, add an index value to make it unique...
+    // note this may not result in 'correct' behavior if we also have the case where the two names are colliding
+    // and they are also being conditionally included in different source files...   we could use a stronger hash function
+    // i guess but for now this will do...
+    int i = 0;
+    for (i=1; i; ++i)
+    {
+        sprintf(buf, "__anontype_%08x_%08x_%d", fileCRC, typeCRC, i);
+        if (search(table, buf) == nullptr)
+           return litlate(buf);        
+    }
+    // should never get here...
+    return nullptr;
 }
 SYMBOL* SymAlloc()
 {
@@ -1043,7 +1065,7 @@ static void baseFinishDeclareStruct(SYMBOL* funcsp)
         }
     }
 }
-static LEXLIST* structbody(LEXLIST* lex, SYMBOL* funcsp, SYMBOL* sp, enum e_ac currentAccess)
+static LEXLIST* structbody(LEXLIST* lex, SYMBOL* funcsp, SYMBOL* sp, enum e_ac currentAccess, SymbolTable<SYMBOL>* anonymousTable)
 {
     STRUCTSYM sl;
     (void)funcsp;
@@ -1090,6 +1112,15 @@ static LEXLIST* structbody(LEXLIST* lex, SYMBOL* funcsp, SYMBOL* sp, enum e_ac c
     dropStructureDeclaration();
     sp->sb->hasvtab = usesVTab(sp);
     calculateStructOffsets(sp);
+
+    if (anonymousTable)
+    {
+        sp->name = AnonymousTypeName(sp, Optimizer::cparams.prm_cplusplus && !sp->sb->parentClass ? globalNameSpace->front()->tags
+                                                                                                  : anonymousTable);
+        SetLinkerNames(sp, lk_cdecl);
+        browse_variable(sp);
+        (Optimizer::cparams.prm_cplusplus && !sp->sb->parentClass ? globalNameSpace->front()->tags : anonymousTable)->Add(sp);
+    }
 
     if (Optimizer::cparams.prm_cplusplus)
     {
@@ -1159,8 +1190,43 @@ static LEXLIST* structbody(LEXLIST* lex, SYMBOL* funcsp, SYMBOL* sp, enum e_ac c
     }
     return lex;
 }
+// this ignores typedef declarations and goes for the 'bare' version of the types...
+static void TypeCRC(TYPE *tp, unsigned& crc)
+{
+    const int constval = 0xffeeccdd;
+    const int volval = 0xaabbccdd;
+    const int arrval = 0x11223344;
+    while (tp)
+    {
+        if (isconst(tp))
+            crc = Utils::PartialCRC32(crc, (const unsigned char *)&constval, sizeof(constval));
+        if (isvolatile(tp))
+            crc = Utils::PartialCRC32(crc, (const unsigned char *)&volval, sizeof(volval));
+        crc = Utils::PartialCRC32(crc, (const unsigned char *)&basetype(tp)->type, sizeof(tp->type));
+        if (basetype(tp)->type == bt_struct || basetype(tp)->type == bt_enum)
+            crc = Utils::PartialCRC32(crc, (const unsigned char *)basetype(tp)->sp->name, strlen(basetype(tp)->sp->name));
+        crc = Utils::PartialCRC32(crc, (const unsigned char *)&basetype(tp)->size, sizeof(tp->size));
+        if (tp->array)
+           crc = Utils::PartialCRC32(crc, (const unsigned char *)&arrval, sizeof(arrval));
+        crc = Utils::PartialCRC32(crc, (const unsigned char *)&basetype(tp)->bits, sizeof(tp->bits));
+        tp = basetype(tp)->btp;    
+    }
+}
+static unsigned TypeCRC(SYMBOL* sp)
+{
+    unsigned crc = 0xffffffff;
+    crc = Utils::PartialCRC32(crc, (const unsigned char *)&basetype(sp->tp)->alignment, sizeof(basetype(sp->tp)->alignment));
+    crc = Utils::PartialCRC32(crc, (const unsigned char *)&basetype(sp->tp)->size, sizeof(basetype(sp->tp)->size));
+    for (auto s : *sp->tp->syms)
+    {
+        crc = Utils::PartialCRC32(crc, (const unsigned char *)s->name, strlen(s->name));
+        crc = Utils::PartialCRC32(crc, (const unsigned char *)&s->sb->offset, sizeof(s->sb->offset));
+        TypeCRC(s->tp, crc);
+    }
+    return crc;
+}
 LEXLIST* innerDeclStruct(LEXLIST* lex, SYMBOL* funcsp, SYMBOL* sp, bool inTemplate, enum e_ac defaultAccess, bool isfinal,
-                         bool* defd)
+                         bool* defd, SymbolTable<SYMBOL>* anonymousTable)
 {
     int oldParsingTemplateArgs;
     oldParsingTemplateArgs = parsingDefaultTemplateArgs;
@@ -1203,7 +1269,7 @@ LEXLIST* innerDeclStruct(LEXLIST* lex, SYMBOL* funcsp, SYMBOL* sp, bool inTempla
     if (KW(lex) == begin)
     {
         sp->sb->isfinal = isfinal;
-        lex = structbody(lex, funcsp, sp, defaultAccess);
+        lex = structbody(lex, funcsp, sp, defaultAccess, anonymousTable);
         *defd = true;
     }
     if (inTemplate && templateNestingCount == 1)
@@ -1257,7 +1323,7 @@ static LEXLIST* declstruct(LEXLIST* lex, SYMBOL* funcsp, TYPE** tp, bool inTempl
                            enum e_ac access, bool* defd, bool constexpression)
 {
     bool isfinal = false;
-    SymbolTable<SYMBOL>* table;
+    SymbolTable<SYMBOL>* table = nullptr;
     const char* tagname;
     char newName[4096];
     enum e_bt type = bt_none;
@@ -1313,7 +1379,7 @@ static LEXLIST* declstruct(LEXLIST* lex, SYMBOL* funcsp, TYPE** tp, bool inTempl
     {
         if (!MATCHKW(lex, begin) && !MATCHKW(lex, colon))
             errorint(ERR_NEEDY, '{');
-        tagname = AnonymousTypeName();
+        tagname = "";
         charindex = -1;
         anonymous = true;
     }
@@ -1400,18 +1466,21 @@ static LEXLIST* declstruct(LEXLIST* lex, SYMBOL* funcsp, TYPE** tp, bool inTempl
             sp->sb->attribs.inheritable.linkage2 = linkage2;
         if (asfriend)
             sp->sb->parentClass = nullptr;
-        SetLinkerNames(sp, lk_cdecl);
-        if (inTemplate && templateNestingCount)
+        if (!anonymous)
         {
-            if (MATCHKW(lex, lt))
-                errorsym(ERR_SPECIALIZATION_REQUIRES_PRIMARY, sp);
-            sp->templateParams = TemplateGetParams(sp);
-            sp->sb->templateLevel = templateNestingCount;
-            TemplateMatching(lex, nullptr, sp->templateParams, sp, MATCHKW(lex, begin) || MATCHKW(lex, colon));
             SetLinkerNames(sp, lk_cdecl);
+            if (inTemplate && templateNestingCount)
+            {
+                if (MATCHKW(lex, lt))
+                    errorsym(ERR_SPECIALIZATION_REQUIRES_PRIMARY, sp);
+                sp->templateParams = TemplateGetParams(sp);
+                sp->sb->templateLevel = templateNestingCount;
+                TemplateMatching(lex, nullptr, sp->templateParams, sp, MATCHKW(lex, begin) || MATCHKW(lex, colon));
+                SetLinkerNames(sp, lk_cdecl);
+            }
+            browse_variable(sp);
+            (Optimizer::cparams.prm_cplusplus && !sp->sb->parentClass ? globalNameSpace->front()->tags : table)->Add(sp);
         }
-        browse_variable(sp);
-        (Optimizer::cparams.prm_cplusplus && !sp->sb->parentClass ? globalNameSpace->front()->tags : table)->Add(sp);
     }
     else
     {
@@ -1538,7 +1607,7 @@ static LEXLIST* declstruct(LEXLIST* lex, SYMBOL* funcsp, TYPE** tp, bool inTempl
         {
             errorsym(ERR_CANNOT_REDEFINE_ACCESS_FOR, sp);
         }
-        lex = innerDeclStruct(lex, funcsp, sp, inTemplate, defaultAccess, isfinal, defd);
+        lex = innerDeclStruct(lex, funcsp, sp, inTemplate, defaultAccess, isfinal, defd, anonymous ? table : nullptr);
         if (constexpression)
         {
             error(ERR_CONSTEXPR_NO_STRUCT);
@@ -1758,7 +1827,7 @@ static LEXLIST* declenum(LEXLIST* lex, SYMBOL* funcsp, TYPE** tp, enum e_sc stor
     else
     {
         noname = true;
-        tagname = AnonymousTypeName();
+        tagname = "";
         charindex = -1;
         anonymous = true;
     }
@@ -1820,9 +1889,12 @@ static LEXLIST* declenum(LEXLIST* lex, SYMBOL* funcsp, TYPE** tp, enum e_sc stor
         if (nsv)
             sp->sb->parentNameSpace = nsv->front()->name;
         sp->sb->anonymous = charindex == -1;
-        SetLinkerNames(sp, lk_cdecl);
-        browse_variable(sp);
-        (Optimizer::cparams.prm_cplusplus && !sp->sb->parentClass ? globalNameSpace->front()->tags : table)->Add(sp);
+        if (!anonymous)
+        {
+           SetLinkerNames(sp, lk_cdecl);
+           browse_variable(sp);
+           (Optimizer::cparams.prm_cplusplus && !sp->sb->parentClass ? globalNameSpace->front()->tags : table)->Add(sp);
+        }
     }
     else if (sp->tp->type != bt_enum)
     {
@@ -1854,6 +1926,13 @@ static LEXLIST* declenum(LEXLIST* lex, SYMBOL* funcsp, TYPE** tp, enum e_sc stor
     }
     sp->tp->sp = sp;
     *tp = sp->tp;
+    if (anonymous)
+    {
+        sp->name = AnonymousTypeName(sp, Optimizer::cparams.prm_cplusplus && !sp->sb->parentClass ? globalNameSpace->front()->tags : table);
+        SetLinkerNames(sp, lk_cdecl);
+        browse_variable(sp);
+        (Optimizer::cparams.prm_cplusplus && !sp->sb->parentClass ? globalNameSpace->front()->tags : table)->Add(sp);     
+    }
     basisAttribs = oldAttribs;
     return lex;
 }
@@ -3225,7 +3304,9 @@ founddecltype:
             if (notype)
                 *notype = true;
             else
+            {
                 error(ERR_MISSING_TYPE_SPECIFIER);
+            }
         }
     }
 exit:
@@ -4339,7 +4420,14 @@ static LEXLIST* GetFunctionQualifiersAndTrailingReturn(LEXLIST* lex, SYMBOL* fun
                 lex = getsym();
             }
             else
+            {
+                if (templateNestingCount)
+                {
+                    while (lex && ISID(lex))
+                        lex = getsym();
+                }
                 done = true;
+            }
         }
         else
             switch (KW(lex))
@@ -5735,7 +5823,7 @@ LEXLIST* declare(LEXLIST* lex, SYMBOL* funcsp, TYPE** tprv, enum e_sc storage_cl
                         {
                             if (MATCHKW(lex, colon) || MATCHKW(lex, begin) || MATCHKW(lex, kw_try))
                             {
-                                if (strcmp(sp->name, "main") != 0)
+                                if (strcmp(sp->name, "main") != 0 && strcmp(sp->name, "WinMain") != 0)
                                 {
                                     sp->sb->attribs.inheritable.isInline = sp->sb->promotedToInline =
                                         true;
@@ -6846,7 +6934,7 @@ LEXLIST* declare(LEXLIST* lex, SYMBOL* funcsp, TYPE** tprv, enum e_sc storage_cl
                                     {
                                         if (!sp->sb->parentNameSpace &&
                                             (!sp->sb->parentClass || !sp->sb->parentClass->templateParams || !templateNestingCount) &&
-                                            strcmp(sp->name, "main"))
+                                            strcmp(sp->name, "main") != 0 && strcmp(sp->name, "WinMain") != 0)
                                         {
                                             sp->sb->attribs.inheritable.linkage4 = lk_virtual;
                                             if (!templateNestingCount || instantiatingTemplate || (sp->sb->specialized && sp->templateParams->size() == 1))
@@ -6960,7 +7048,11 @@ LEXLIST* declare(LEXLIST* lex, SYMBOL* funcsp, TYPE** tprv, enum e_sc storage_cl
                             LEXLIST* hold = lex;
                             bool structuredArray = false;
                             if (notype)
+                            {
                                 errorsym(ERR_UNDEFINED_IDENTIFIER_EXPECTING_TYPE, sp);
+                                errskim(&lex, skim_semi);
+                                return lex;
+                            }
                             if (linkage3 == lk_entrypoint)
                             {
                                 errorsym(ERR_ENTRYPOINT_FUNC_ONLY, sp);
@@ -6973,8 +7065,12 @@ LEXLIST* declare(LEXLIST* lex, SYMBOL* funcsp, TYPE** tprv, enum e_sc storage_cl
                                 checkauto(sp->tp, ERR_AUTO_NOT_ALLOWED);
                             if (sp->sb->storage_class == sc_auto || sp->sb->storage_class == sc_register)
                             {
-                                STATEMENT* s = stmtNode(lex, block, st_varstart);
-                                s->select = varNode(en_auto, sp);
+                                /* special case consts that can later have their address taken, because they are not autos and it will cause errors later*/
+                                if (!isint(sp->tp) || !isconst(sp->tp))
+                                {
+                                    STATEMENT* s = stmtNode(lex, block, st_varstart);
+                                    s->select = varNode(en_auto, sp);
+                                }
                             }
                             if (!sp->sb->label && (sp->sb->storage_class == sc_static || sp->sb->storage_class == sc_localstatic) &&
                                 (Optimizer::architecture == ARCHITECTURE_MSIL))
