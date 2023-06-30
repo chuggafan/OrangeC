@@ -23,6 +23,7 @@
  */
 
 #include "compiler.h"
+#include <cstdarg>
 #include "PreProcessor.h"
 #include "Utils.h"
 #include "CmdSwitch.h"
@@ -134,6 +135,20 @@ int usingEsp;
 #ifdef HAVE_UNISTD_H
 #    include <unistd.h>
 #endif
+
+bool IsSymbolCharRoutine(const char* data, bool startOnly)
+{
+    diag("IsSymbolCharRoutine called");
+    abort();
+}
+void InstructionParser::Split(const std::string& line, std::vector<std::string>& splt)
+{
+    {
+        diag("InstructionParser::Split called");
+        abort();
+    }
+}
+
 namespace occmsil
 {
 int msil_main_preprocess(char* fileName);
@@ -155,6 +170,30 @@ std::string ccNewFile(char* fileName, bool main);
 void ccCloseFile(FILE* handle);
 int ccDBOpen(const char* name);
 }  // namespace CompletionCompiler
+
+void diag(const char* fmt, ...)
+{
+    using namespace Parser;
+    if (!templateNestingCount)
+    {
+        if (Optimizer::cparams.prm_diag)
+        {
+            va_list argptr;
+
+            va_start(argptr, fmt);
+            printf("Diagnostic: ");
+            vprintf(fmt, argptr);
+            if (theCurrentFunc)
+                printf(":%s", theCurrentFunc->sb->decoratedName);
+            printf("\n");
+            va_end(argptr);
+        }
+        diagcount++;
+    }
+}
+
+
+
 namespace Parser
 {
 #ifdef _WIN32
@@ -245,6 +284,15 @@ Optimizer::COMPILER_PARAMS cparams_default = {
 };
 
 int usingEsp;
+
+bool IsCompiler() 
+{
+#ifdef PARSER_ONLY
+    return false;
+#else
+    return true;
+#endif 
+}
 
 static void debug_dumptypedefs(std::list<NAMESPACEVALUEDATA*>* nameSpace)
 {
@@ -338,8 +386,16 @@ void compile(bool global)
         lex = getsym();
         if (lex)
         {
-            while ((lex = declare(lex, nullptr, nullptr, sc_global, lk_none, emptyBlockdata, true, false, false, ac_public)) != nullptr)
-                ;
+            while ((lex = declare(lex, nullptr, nullptr, sc_global, lk_none, emptyBlockdata, true, false, false, ac_public)) !=
+                   nullptr)
+            {
+                if (MATCHKW(lex, end))
+                {
+                    lex = getsym();
+                    if (!lex)
+                        break;
+                }
+            }
         }
     }
     if (!IsCompiler())
