@@ -78,7 +78,7 @@ void ppPragma::ParsePragma(const std::string& args)
             HandleLibrary(tk);
         else if (str == "STARTUP")
             HandleStartup(tk);
-        else if (str == "RUNDOWN")
+        else if (str == "RUNDOWN" || str == "EXIT")
             HandleRundown(tk);
         else if (str == "WARNING")
             HandleWarning(tk);
@@ -89,7 +89,7 @@ void ppPragma::ParsePragma(const std::string& args)
         else if (str == "ONCE")
             HandleOnce(tk);
         else if (str == "PRIORITYCPP")
-            cppprio++;
+            cppprio--;
         else if (str == "IGNORE_GLOBAL_INIT")
             HandleIgnoreGlobalInit(tk);
         else if (str == "PUSH_MACRO")

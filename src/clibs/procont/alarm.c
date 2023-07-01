@@ -22,30 +22,54 @@
  * 
  */
 
-#include <stdio.h>
-#include <string.h>
 #include <stdlib.h>
 #include <time.h>
+#include <stdio.h>
 #include <wchar.h>
 #include <locale.h>
 #include "libp.h"
+#include <signal.h>
+#include <unistd.h>
+#include <stdbool.h>
+#include <threads.h>
 
-char _RTL_DATA** _environ;
-
-#pragma startup envset 31
-
-static void envset(void)
+// this ought to use the implementation from setitimer but we don't have one of those...
+struct almdata
 {
-    int count = __ll_getenv(0, 0), i, j;
-    _environ = calloc(sizeof(char*) * (count + 1), 1);
-    for (i = 1, j = 0; i <= count; i++)
+    time_t start;
+    unsigned sleepperiod;
+    bool toSignal;
+};
+
+static struct almdata *current;
+static int sleeper(void *v)
+{
+   struct almdata *data = v;
+   __ll_thrdsleep(data->sleepperiod * 1000);
+   if (data->toSignal)
+   {
+       raise(SIGALRM);
+       current = NULL;
+   }
+   free(v);
+   return 0;
+}
+unsigned _RTL_FUNC alarm(unsigned sec)
+{
+    unsigned rv = 0;
+    __ll_enter_critical();
+    if (current)
     {
-        int n = __ll_getenvsize(i - 1);
-        char* p = (char*)malloc(n + 1);
-        __ll_getenv(p, i - 1);
-        if (p[0] != '=')
-            _environ[j++] = p;
-        else
-            free(p);
+        rv = current->start + current->sleepperiod - time(0);
+        current->toSignal = false;
+        current = NULL;
     }
+    current = calloc(1, sizeof(struct almdata));
+    current->start = time(0);
+    current->sleepperiod = sec;
+    current->toSignal = true;
+    __ll_exit_critical();
+    thrd_t handle;
+    thrd_create(&handle, sleeper, current); 
+    return rv;
 }

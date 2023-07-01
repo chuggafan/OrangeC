@@ -81,12 +81,13 @@ static void sigfp(int aa)
 static void sigabort(int aa) { _abort(); }
 struct sigaction __defsigtab[NSIG] = {{SIG_ERR}, {SIG_ERR}, {sigint},  {SIG_ERR},      {sigill},  {SIG_ERR}, {SIG_ERR}, {SIG_ERR},
                                       {sigfp},   {SIG_ERR}, {SIG_ERR}, {__ll_sigsegv}, {SIG_ERR}, {SIG_ERR}, {SIG_ERR}, {sigterm},
-                                      {SIG_IGN}, {SIG_IGN}, {SIG_ERR}, {SIG_ERR},      {SIG_IGN}, {sigint},  {sigabort}};
+                                      {SIG_IGN}, {SIG_IGN}, {SIG_ERR}, {SIG_ERR},      {SIG_IGN}, {sigint},  {sigabort},
+{SIG_IGN}};
 
 struct sigaction __sigtab[NSIG];
 static char insignal[NSIG];
 
-#pragma startup siginit 227
+#pragma startup siginit 29
 
 static void siginit(void)
 {
