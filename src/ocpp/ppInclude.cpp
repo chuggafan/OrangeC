@@ -1,25 +1,25 @@
 /* Software License Agreement
- * 
+ *
  *     Copyright(C) 1994-2023 David Lindauer, (LADSoft)
- * 
+ *
  *     This file is part of the Orange C Compiler package.
- * 
+ *
  *     The Orange C Compiler package is free software: you can redistribute it and/or modify
  *     it under the terms of the GNU General Public License as published by
  *     the Free Software Foundation, either version 3 of the License, or
  *     (at your option) any later version.
- * 
+ *
  *     The Orange C Compiler package is distributed in the hope that it will be useful,
  *     but WITHOUT ANY WARRANTY; without even the implied warranty of
  *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *     GNU General Public License for more details.
- * 
+ *
  *     You should have received a copy of the GNU General Public License
  *     along with Orange C.  If not, see <http://www.gnu.org/licenses/>.
- * 
+ *
  *     contact information:
  *         email: TouchStone222@runbox.com <David Lindauer>
- * 
+ *
  */
 
 #define _CRT_SECURE_NO_WARNINGS
@@ -126,6 +126,7 @@ bool ppInclude::CheckLine(kw token, const std::string& args)
 void ppInclude::pushFile(const std::string& name, const std::string& errname, bool include_next, bool foundAsSystem,
                          int dirs_traversed)
 {
+    std::cout << "pushFile name: " << name << " dirs traversed: " << dirs_traversed << std::endl;
     if (systemNesting)
         foundAsSystem = true;
     if (foundAsSystem)
@@ -255,6 +256,8 @@ std::string ppInclude::FindFile(bool specifiedAsSystem, const std::string& name,
                                 bool& foundAsSystem)
 {
     std::string rv;
+    std::cout << "FindFile name: " << name << " dirs skipped: " << dirs_skipped
+              << " Current ppFile name: " << current->GetRealFile() << std::endl;
     int include_files_skipped = 0;
     // search in system search path first, if they specified it with <>
     if (specifiedAsSystem)
@@ -277,6 +280,9 @@ std::string ppInclude::FindFile(bool specifiedAsSystem, const std::string& name,
             // search path, because this actually matters in #include_next-ville
         }
     }
+    std::cout << "FindFile name 2: " << name << " dirs skipped: " << dirs_skipped
+              << " include_files_skipped: " << include_files_skipped << std::endl;
+
     // if not there get the file path of the last included file, and search there
     // #include_next cannot search in the same directory as the current file by definition, so skip the last included dir too
     if (rv.empty() && !skipFirst)
@@ -300,6 +306,9 @@ std::string ppInclude::FindFile(bool specifiedAsSystem, const std::string& name,
             rv = "";
         }
     }
+    std::cout << "FindFile name 3: " << name << " dirs skipped: " << dirs_skipped
+              << " include_files_skipped: " << include_files_skipped << std::endl;
+
     // if not there search in local directory
     // #include_next does not search this, skip it.
     if (rv.empty() && !skipFirst)
@@ -311,15 +320,26 @@ std::string ppInclude::FindFile(bool specifiedAsSystem, const std::string& name,
             include_files_skipped = current->getDirsTravelled();
         }
     }
+    std::cout << "FindFile name 4: " << name << " dirs skipped: " << dirs_skipped
+              << " include_files_skipped: " << include_files_skipped << std::endl;
+
     // if not there search on user search path
     // #include_next basically runs through only these two, and maybe the first, if the 2nd here doesn't run, but it's already an
     // inconsistent feature so
     if (rv.empty())
     {
+        std::cout << "sysSearchPath is empty between 4 and 5: " << sysSrchPath.empty() << std::endl;
+        std::cout << "srchPath is empty between 4 and 5: " << srchPath.empty() << std::endl;
         int skipped = include_files_skipped + (sysSrchPath.empty() ? 1 : 0);
         rv = SrchPath(false, name, srchPath, skipFirst, skipped);
+        std::cout << "Search Path: " << srchPath << std::endl;
         include_files_skipped = skipped - (sysSrchPath.empty() ? 1 : 0);
+        std::cout << "srchPath 2 is empty between 4 and 5: " << srchPath.empty() << std::endl;
+        std::cout << "sysSearchPath 2 is empty between 4 and 5: " << sysSrchPath.empty() << std::endl;
     }
+    std::cout << "FindFile name 5: " << name << " dirs skipped: " << dirs_skipped
+              << " include_files_skipped: " << include_files_skipped << std::endl;
+
     // if not there and we haven't searched the system search path, do it now
     if (rv.empty() && !specifiedAsSystem)
     {
@@ -327,6 +347,9 @@ std::string ppInclude::FindFile(bool specifiedAsSystem, const std::string& name,
         if (!rv.empty())
             foundAsSystem = true;
     }
+    std::cout << "FindFile name 6: " << name << " dirs skipped: " << dirs_skipped
+              << " include_files_skipped: " << include_files_skipped << std::endl;
+
     dirs_skipped = include_files_skipped;
     return rv.empty() ? name : rv;
 }
@@ -358,6 +381,9 @@ std::string ppInclude::SrchPath(bool system, const std::string& name, const std:
                     return "";
                 }
                 path = RetrievePath(buf, path);
+                if (skipUntilDepth)
+                    std::cerr << "SrchPath Path checked: " << buf << " name: " << name << " Files skipped: " << filesSkipped
+                              << " skips needed: " << totalNumberofSkipsNeeded + 1 << " system? " << system << std::endl;
                 filesSkipped++;
             }
         }
@@ -376,6 +402,7 @@ std::string ppInclude::SrchPath(bool system, const std::string& name, const std:
         {
             *p = CmdFiles::DIR_SEP[0];
         }
+        std::cerr << "File existence check: " << buf << std::endl;
         if (Utils::FileExists(buf))
         {
             if (filesSkipped > 0)  // we lie to ourselves about how many files we skip while searching so that we go past the
