@@ -89,7 +89,9 @@
 #        define _NORETURN
 #    elif __STDC_VERSION__ < 202311L && !defined(__cplusplus)
 #        define _NORETURN _Noreturn
-#    elif defined(__cplusplus) && __cplusplus > 201103L
+#    elif __STDC_VERSION__ >= 202311L && !defined(__cplusplus)
+#        define _NORETURN [[noreturn]]
+#    elif (defined(__cplusplus) && __cplusplus > 201103L)
 #        define _NORETURN [[noreturn]]
 #    else
 #        define _NORETURN
